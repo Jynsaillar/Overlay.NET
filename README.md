@@ -1,4 +1,4 @@
-# Overlay.NET
+# Overlay.NET (forked from [Overlay.NET by Jacob Kemple](https://github.com/lolp1/Overlay.NET))
 
 ## Synopsis
 
@@ -32,3 +32,4 @@ alt="Overlay demo" width="300" height="200" border="10" /></a>
 - Julian Forrester aka Arcanaeum for showing me how to make a basic wpf overlay.
 - https://github.com/michel-pi/GameOverlay.Net - The external directx2D overlay implementation.
 - xaviermonin (https://github.com/xaviermonin) - fixed the most annoying directx overlay bug for the creators window update.
+- Jacob Kemple aka lolp1 for creating the original Overlay.NET
