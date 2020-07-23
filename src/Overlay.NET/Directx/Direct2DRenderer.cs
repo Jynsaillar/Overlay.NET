@@ -1,6 +1,10 @@
 using System;
+using System.IO;
+using System.Reflection;
 using System.Collections.Generic;
+using System.Drawing.Imaging;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Overlay.NET.Common;
 using SharpDX;
 using SharpDX.Direct2D1;
@@ -10,12 +14,17 @@ using SharpDX.Mathematics.Interop;
 using AlphaMode = SharpDX.Direct2D1.AlphaMode;
 using Color = System.Drawing.Color;
 using Factory = SharpDX.DirectWrite.Factory;
+using PixelFormat = SharpDX.Direct2D1.PixelFormat;
 using TextAntialiasMode = SharpDX.Direct2D1.TextAntialiasMode;
 
-namespace Overlay.NET.Directx {
+namespace Overlay.NET.Directx
+{
     /// <summary>
     /// </summary>
-    public class Direct2DRenderer {
+    public class Direct2DRenderer
+    {
+        public Bitmap CurrentBitmap;
+
         /// <summary>
         ///     Gets the size of the buffer brush.
         /// </summary>
@@ -104,7 +113,8 @@ namespace Overlay.NET.Directx {
         /// </summary>
         /// <param name="hwnd">The HWND.</param>
         /// <param name="limitFps">if set to <c>true</c> [limit FPS].</param>
-        public Direct2DRenderer(IntPtr hwnd, bool limitFps) {
+        public Direct2DRenderer(IntPtr hwnd, bool limitFps)
+        {
             _factory = new SharpDX.Direct2D1.Factory();
 
             _fontFactory = new Factory();
@@ -112,7 +122,8 @@ namespace Overlay.NET.Directx {
             Native.Rect bounds;
             Native.GetWindowRect(hwnd, out bounds);
 
-            var targetProperties = new HwndRenderTargetProperties {
+            var targetProperties = new HwndRenderTargetProperties
+            {
                 Hwnd = hwnd,
                 PixelSize = new Size2(bounds.Right - bounds.Left, bounds.Bottom - bounds.Top),
                 PresentOptions = limitFps ? PresentOptions.None : PresentOptions.Immediately
@@ -122,7 +133,8 @@ namespace Overlay.NET.Directx {
                 new PixelFormat(Format.B8G8R8A8_UNorm, AlphaMode.Premultiplied), 0, 0, RenderTargetUsage.None,
                 FeatureLevel.Level_DEFAULT);
 
-            _device = new WindowRenderTarget(_factory, prop, targetProperties) {
+            _device = new WindowRenderTarget(_factory, prop, targetProperties)
+            {
                 TextAntialiasMode = TextAntialiasMode.Aliased,
                 AntialiasMode = AntialiasMode.Aliased
             };
@@ -131,7 +143,8 @@ namespace Overlay.NET.Directx {
         /// <summary>
         ///     Do not call if you use OverlayWindow class
         /// </summary>
-        public void Dispose() {
+        public void Dispose()
+        {
             DeleteBrushContainer();
             DeleteFontContainer();
             DeleteLayoutContainer();
@@ -140,6 +153,7 @@ namespace Overlay.NET.Directx {
             _fontContainer = null;
             _layoutContainer = null;
 
+            CurrentBitmap.Dispose();
             _fontFactory.Dispose();
             _factory.Dispose();
             _device.Dispose();
@@ -151,7 +165,8 @@ namespace Overlay.NET.Directx {
         /// <param name="x">Width</param>
         /// <param name="y">Height</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AutoResize(int x, int y) {
+        public void AutoResize(int x, int y)
+        {
             _doResize = true;
             _resizeX = x;
             _resizeY = y;
@@ -160,9 +175,11 @@ namespace Overlay.NET.Directx {
         /// <summary>
         ///     Call this after EndScene if you created brushes within a loop
         /// </summary>
-        public void DeleteBrushContainer() {
+        public void DeleteBrushContainer()
+        {
             BufferBrushSize = _brushContainer.Count;
-            foreach (var solidColorBrush in _brushContainer) {
+            foreach (var solidColorBrush in _brushContainer)
+            {
                 solidColorBrush.Dispose();
             }
             _brushContainer = new List<SolidColorBrush>(BufferBrushSize);
@@ -171,9 +188,11 @@ namespace Overlay.NET.Directx {
         /// <summary>
         ///     Call this after EndScene if you created fonts within a loop
         /// </summary>
-        public void DeleteFontContainer() {
+        public void DeleteFontContainer()
+        {
             BufferFontSize = _fontContainer.Count;
-            foreach (var textFormat in _fontContainer) {
+            foreach (var textFormat in _fontContainer)
+            {
                 textFormat.Dispose();
             }
             _fontContainer = new List<TextFormat>(BufferFontSize);
@@ -182,9 +201,11 @@ namespace Overlay.NET.Directx {
         /// <summary>
         ///     Call this after EndScene if you changed your text's font or have problems with huge memory usage
         /// </summary>
-        public void DeleteLayoutContainer() {
+        public void DeleteLayoutContainer()
+        {
             BufferLayoutSize = _layoutContainer.Count;
-            foreach (var layoutBuffer in _layoutContainer) {
+            foreach (var layoutBuffer in _layoutContainer)
+            {
                 layoutBuffer.Dispose();
             }
             _layoutContainer = new List<TextLayoutBuffer>(BufferLayoutSize);
@@ -197,9 +218,10 @@ namespace Overlay.NET.Directx {
         /// <returns>
         ///     int Brush identifier
         /// </returns>
-        public int CreateBrush(int color) {
+        public int CreateBrush(int color)
+        {
             _brushContainer.Add(new SolidColorBrush(_device,
-                new RawColor4((color >> 16) & 255L, (color >> 8) & 255L, (byte) color & 255L, (color >> 24) & 255L)));
+                new RawColor4((color >> 16) & 255L, (color >> 8) & 255L, (byte)color & 255L, (color >> 24) & 255L)));
             return _brushContainer.Count - 1;
         }
 
@@ -210,8 +232,10 @@ namespace Overlay.NET.Directx {
         /// <returns>
         ///     int Brush identifier
         /// </returns>
-        public int CreateBrush(Color color) {
-            if (color.A == 0) {
+        public int CreateBrush(Color color)
+        {
+            if (color.A == 0)
+            {
                 color = Color.FromArgb(255, color);
             }
 
@@ -227,7 +251,8 @@ namespace Overlay.NET.Directx {
         /// <param name="bold">print bold text</param>
         /// <param name="italic">print italic text</param>
         /// <returns></returns>
-        public int CreateFont(string fontFamilyName, float size, bool bold = false, bool italic = false) {
+        public int CreateFont(string fontFamilyName, float size, bool bold = false, bool italic = false)
+        {
             _fontContainer.Add(new TextFormat(_fontFactory, fontFamilyName, bold ? FontWeight.Bold : FontWeight.Normal,
                 italic ? FontStyle.Italic : FontStyle.Normal, size));
             return _fontContainer.Count - 1;
@@ -236,8 +261,10 @@ namespace Overlay.NET.Directx {
         /// <summary>
         ///     Do your drawing after this
         /// </summary>
-        public void BeginScene() {
-            if (_doResize) {
+        public void BeginScene()
+        {
+            if (_doResize)
+            {
                 _device.Resize(new Size2(_resizeX, _resizeY));
 
                 _doResize = false;
@@ -248,9 +275,11 @@ namespace Overlay.NET.Directx {
         /// <summary>
         ///     Present frame. Do not draw after this.
         /// </summary>
-        public void EndScene() {
+        public void EndScene()
+        {
             _device.EndDraw();
-            if (!_doResize) {
+            if (!_doResize)
+            {
                 return;
             }
             _device.Resize(new Size2(_resizeX, _resizeY));
@@ -309,7 +338,8 @@ namespace Overlay.NET.Directx {
         /// <param name="stroke">The stroke.</param>
         /// <param name="brush">The brush.</param>
         /// <param name="interiorBrush">The interior brush.</param>
-        public void DrawBox2D(int x, int y, int width, int height, float stroke, int brush, int interiorBrush) {
+        public void DrawBox2D(int x, int y, int width, int height, float stroke, int brush, int interiorBrush)
+        {
             _device.DrawRectangle(new RawRectangleF(x, y, x + width, y + height), _brushContainer[brush], stroke);
             _device.FillRectangle(new RawRectangleF(x + stroke, y + stroke, x + width - stroke, y + height - stroke),
                 _brushContainer[interiorBrush]);
@@ -327,7 +357,8 @@ namespace Overlay.NET.Directx {
         /// <param name="brush">The brush.</param>
         /// <param name="interiorBrush">The interior brush.</param>
         public void DrawBox3D(int x, int y, int width, int height, int length, float stroke, int brush,
-            int interiorBrush) {
+            int interiorBrush)
+        {
             var first = new RawRectangleF(x, y, x + width, y + height);
             var second = new RawRectangleF(x + length, y - length, first.Right + length, first.Bottom - length);
 
@@ -368,7 +399,8 @@ namespace Overlay.NET.Directx {
         /// <param name="length">The length.</param>
         /// <param name="stroke">The stroke.</param>
         /// <param name="brush">The brush.</param>
-        public void DrawRectangle3D(int x, int y, int width, int height, int length, float stroke, int brush) {
+        public void DrawRectangle3D(int x, int y, int width, int height, int length, float stroke, int brush)
+        {
             var first = new RawRectangleF(x, y, x + width, y + height);
             var second = new RawRectangleF(x + length, y - length, first.Right + length, first.Bottom - length);
 
@@ -404,7 +436,8 @@ namespace Overlay.NET.Directx {
         /// <param name="length">The length.</param>
         /// <param name="stroke">The stroke.</param>
         /// <param name="brush">The brush.</param>
-        public void DrawPlus(int x, int y, int length, float stroke, int brush) {
+        public void DrawPlus(int x, int y, int length, float stroke, int brush)
+        {
             var first = new RawVector2(x - length, y);
             var second = new RawVector2(x + length, y);
 
@@ -474,12 +507,14 @@ namespace Overlay.NET.Directx {
         /// <param name="brush">The brush.</param>
         /// <param name="interiorBrush">The interior brush.</param>
         public void DrawBarH(int x, int y, int width, int height, float value, float stroke, int brush,
-            int interiorBrush) {
+            int interiorBrush)
+        {
             var first = new RawRectangleF(x, y, x + width, y + height);
 
             _device.DrawRectangle(first, _brushContainer[brush], stroke);
 
-            if (Math.Abs(value) < 0) {
+            if (Math.Abs(value) < 0)
+            {
                 return;
             }
 
@@ -500,12 +535,14 @@ namespace Overlay.NET.Directx {
         /// <param name="brush">The brush.</param>
         /// <param name="interiorBrush">The interior brush.</param>
         public void DrawBarV(int x, int y, int width, int height, float value, float stroke, int brush,
-            int interiorBrush) {
+            int interiorBrush)
+        {
             var first = new RawRectangleF(x, y, x + width, y + height);
 
             _device.DrawRectangle(first, _brushContainer[brush], stroke);
 
-            if (Math.Abs(value) < 0) {
+            if (Math.Abs(value) < 0)
+            {
                 return;
             }
 
@@ -545,7 +582,8 @@ namespace Overlay.NET.Directx {
         /// <param name="stroke">The stroke.</param>
         /// <param name="brush">The brush.</param>
         /// <param name="borderBrush">The border brush.</param>
-        public void BorderedLine(int startX, int startY, int endX, int endY, float stroke, int brush, int borderBrush) {
+        public void BorderedLine(int startX, int startY, int endX, int endY, float stroke, int brush, int borderBrush)
+        {
             _device.DrawLine(new RawVector2(startX, startY), new RawVector2(endX, endY), _brushContainer[brush], stroke);
 
             _device.DrawLine(new RawVector2(startX, startY - stroke), new RawVector2(endX, endY - stroke),
@@ -571,7 +609,8 @@ namespace Overlay.NET.Directx {
         /// <param name="brush">The brush.</param>
         /// <param name="borderBrush">The border brush.</param>
         public void BorderedRectangle(int x, int y, int width, int height, float stroke, float borderStroke, int brush,
-            int borderBrush) {
+            int borderBrush)
+        {
             _device.DrawRectangle(
                 new RawRectangleF(x - (stroke - borderStroke), y - (stroke - borderStroke),
                     x + width + stroke - borderStroke, y + height + stroke - borderStroke), _brushContainer[borderBrush],
@@ -594,7 +633,8 @@ namespace Overlay.NET.Directx {
         /// <param name="stroke">The stroke.</param>
         /// <param name="brush">The brush.</param>
         /// <param name="borderBrush">The border brush.</param>
-        public void BorderedCircle(int x, int y, int radius, float stroke, int brush, int borderBrush) {
+        public void BorderedCircle(int x, int y, int radius, float stroke, int brush, int borderBrush)
+        {
             _device.DrawEllipse(new Ellipse(new RawVector2(x, y), radius + stroke, radius + stroke),
                 _brushContainer[borderBrush], stroke);
 
@@ -613,19 +653,24 @@ namespace Overlay.NET.Directx {
         /// <param name="x">The x.</param>
         /// <param name="y">The y.</param>
         /// <param name="bufferText">if set to <c>true</c> [buffer text].</param>
-        public void DrawText(string text, int font, int brush, int x, int y, bool bufferText = true) {
-            if (bufferText) {
+        public void DrawText(string text, int font, int brush, int x, int y, bool bufferText = true)
+        {
+            if (bufferText)
+            {
                 var bufferPos = -1;
 
-                for (var i = 0; i < _layoutContainer.Count; i++) {
-                    if (_layoutContainer[i].Text.Length != text.Length || _layoutContainer[i].Text != text) {
+                for (var i = 0; i < _layoutContainer.Count; i++)
+                {
+                    if (_layoutContainer[i].Text.Length != text.Length || _layoutContainer[i].Text != text)
+                    {
                         continue;
                     }
                     bufferPos = i;
                     break;
                 }
 
-                if (bufferPos == -1) {
+                if (bufferPos == -1)
+                {
                     _layoutContainer.Add(new TextLayoutBuffer(text,
                         new TextLayout(_fontFactory, text, _fontContainer[font], float.MaxValue, float.MaxValue)));
                     bufferPos = _layoutContainer.Count - 1;
@@ -634,10 +679,129 @@ namespace Overlay.NET.Directx {
                 _device.DrawTextLayout(new RawVector2(x, y), _layoutContainer[bufferPos].TextLayout,
                     _brushContainer[brush], DrawTextOptions.NoSnap);
             }
-            else {
+            else
+            {
                 var layout = new TextLayout(_fontFactory, text, _fontContainer[font], float.MaxValue, float.MaxValue);
                 _device.DrawTextLayout(new RawVector2(x, y), layout, _brushContainer[brush]);
                 layout.Dispose();
+            }
+        }
+
+        public void DrawBitmap(float left, float top, float right, float bottom)
+        {
+            if (CurrentBitmap == null)
+                return;
+            _device.DrawBitmap(CurrentBitmap, new RawRectangleF(left, top, right, bottom), 1.0f, BitmapInterpolationMode.Linear);
+        }
+
+        public void LoadBitmap(string file)
+        {
+            if (CurrentBitmap != null)
+            {
+                CurrentBitmap.Dispose();
+                CurrentBitmap = null;
+            }
+
+            CurrentBitmap = LoadFromFile(_device, file);
+        }
+
+        public void LoadBitmapFromResource(Stream resourceStream)
+        {
+            if (CurrentBitmap != null)
+            {
+                CurrentBitmap.Dispose();
+                CurrentBitmap = null;
+            }
+
+            if (resourceStream == null)
+                return;
+
+            using (resourceStream)
+                CurrentBitmap = LoadFromResource(_device, resourceStream);
+        }
+
+        /// <summary>
+        /// Loads a Direct2D Bitmap from a file using System.Drawing.Image.FromFile(...)
+        /// </summary>
+        /// <param name="renderTarget">The render target.</param>
+        /// <param name="file">The file.</param>
+        /// <returns>A D2D1 Bitmap</returns>
+        private Bitmap LoadFromFile(RenderTarget renderTarget, string file)
+        {
+            // Loads from file using System.Drawing.Image
+            using (var bitmap = (System.Drawing.Bitmap)System.Drawing.Image.FromFile(file))
+            {
+                var sourceArea = new System.Drawing.Rectangle(0, 0, bitmap.Width, bitmap.Height);
+                var bitmapProperties = new BitmapProperties(new PixelFormat(Format.R8G8B8A8_UNorm, AlphaMode.Premultiplied));
+                var size = new SharpDX.Size2(bitmap.Width, bitmap.Height);
+
+                // Transform pixels from BGRA to RGBA
+                int stride = bitmap.Width * sizeof(int);
+                using (var tempStream = new DataStream(bitmap.Height * stride, true, true))
+                {
+                    // Lock System.Drawing.Bitmap
+                    var bitmapData = bitmap.LockBits(sourceArea, ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
+
+                    // Convert all pixels
+                    for (int y = 0; y < bitmap.Height; y++)
+                    {
+                        int offset = bitmapData.Stride * y;
+                        for (int x = 0; x < bitmap.Width; x++)
+                        {
+                            // Not optimized
+                            byte B = Marshal.ReadByte(bitmapData.Scan0, offset++);
+                            byte G = Marshal.ReadByte(bitmapData.Scan0, offset++);
+                            byte R = Marshal.ReadByte(bitmapData.Scan0, offset++);
+                            byte A = Marshal.ReadByte(bitmapData.Scan0, offset++);
+                            int rgba = R | (G << 8) | (B << 16) | (A << 24);
+                            tempStream.Write(rgba);
+                        }
+                    }
+                    bitmap.UnlockBits(bitmapData);
+                    tempStream.Position = 0;
+
+                    return new Bitmap(renderTarget, size, tempStream, stride, bitmapProperties);
+                }
+            }
+        }
+
+        private Bitmap LoadFromResource(RenderTarget renderTarget, Stream resourceStream)
+        {
+            // Loads from resource via stream
+            using (resourceStream)
+            using (var bitmap = new System.Drawing.Bitmap(resourceStream))
+            {
+                var sourceArea = new System.Drawing.Rectangle(0, 0, bitmap.Width, bitmap.Height);
+                var bitmapProperties = new BitmapProperties(new PixelFormat(Format.R8G8B8A8_UNorm, AlphaMode.Premultiplied));
+                var size = new SharpDX.Size2(bitmap.Width, bitmap.Height);
+
+                // Transform pixels from BGRA to RGBA
+                int stride = bitmap.Width * sizeof(int);
+                using (var tempStream = new DataStream(bitmap.Height * stride, true, true))
+                {
+                    // Lock System.Drawing.Bitmap
+                    var bitmapData = bitmap.LockBits(sourceArea, ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
+
+                    // Convert all pixels
+                    for (int y = 0; y < bitmap.Height; y++)
+                    {
+                        int offset = bitmapData.Stride * y;
+                        for (int x = 0; x < bitmap.Width; x++)
+                        {
+                            // Not optimized
+                            byte B = Marshal.ReadByte(bitmapData.Scan0, offset++);
+                            byte G = Marshal.ReadByte(bitmapData.Scan0, offset++);
+                            byte R = Marshal.ReadByte(bitmapData.Scan0, offset++);
+                            byte A = Marshal.ReadByte(bitmapData.Scan0, offset++);
+                            int rgba = R | (G << 8) | (B << 16) | (A << 24);
+                            tempStream.Write(rgba);
+                        }
+                    }
+                    bitmap.UnlockBits(bitmapData);
+                    tempStream.Position = 0;
+
+                    return new Bitmap(renderTarget, size, tempStream, stride, bitmapProperties);
+                }
             }
         }
     }
